@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Atenea AI - Coautora Oficial</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: #12131a; color: #fff; overflow: hidden; height: 100vh; width: 100vw; }
+    #canvas-container { position: absolute; inset: 0; z-index: 1; }
+    
+    /* Barra superior de herramientas */
+    .top-bar {
+      position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10;
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between;
+      background: rgba(20, 22, 35, 0.85); padding: 8px 12px; border-radius: 12px;
+      border: 1px solid rgba(255, 75, 90, 0.4); backdrop-filter: blur(6px);
+    }
+    .btn {
+      background: #2b2f4c; color: #fff; border: 1px solid #ff4b5a;
+      padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;
+    }
+    .btn:active { background: #ff4b5a; }
+    
+    /* Panel de configuración ocultable */
+    #settings-panel {
+      position: absolute; top: 60px; left: 10px; right: 10px; z-index: 20;
+      background: rgba(18, 19, 26, 0.95); padding: 15px; border-radius: 12px;
+      border: 1px solid #ff4b5a; display: none; flex-direction: column; gap: 10px;
+    }
+    #settings-panel input {
+      width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444;
+      background: #1e2030; color: #fff;
+    }
+
+    /* Ventana de chat inferior */
+    .chat-box {
+      position: absolute; bottom: 12px; left: 10px; right: 10px; z-index: 10;
+      display: flex; flex-direction: column; gap: 8px;
+      background: rgba(15, 17, 26, 0.82); padding: 12px; border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px);
+      max-height: 42vh;
+    }
+    #messages {
+      overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px;
+      font-size: 14px; line-height: 1.4; padding-right: 4px;
+    }
+    .msg-atenea { color: #ffd1d6; background: rgba(255, 75, 90, 0.15); padding: 8px 10px; border-radius: 10px; border-left: 3px solid #ff4b5a; }
+    .msg-user { color: #d1e8ff; background: rgba(75, 150, 255, 0.15); padding: 8px 10px; border-radius: 10px; align-self: flex-end; }
+    .input-row { display: flex; gap: 6px; }
+    #user-input {
+      flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #444;
+      background: #1e2030; color: #fff; outline: none;
+    }
+    #send-btn { background: #ff4b5a; border: none; padding: 0 16px; border-radius: 10px; color: #fff; font-weight: bold; }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+        "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.1.0/lib/three-vrm.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <div class="top-bar">
+    <label class="btn">
+      🦉 Cargar .VRM
+      <input type="file" id="vrm-file" accept=".vrm" style="display:none" />
+    </label>
+    <button class="btn" id="arm-btn">Ajustar Brazos</button>
+    <button class="btn" id="cfg-btn">⚙️ API Key</button>
+  </div>
+
+  <div id="settings-panel">
+    <label style="font-size:12px;">Clave API de Google AI Studio:</label>
+    <input type="password" id="api-key-input" placeholder="Pega tu API Key aquí..." />
+    <button class="btn" id="save-cfg-btn">Guardar y Cerrar</button>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <div class="chat-box">
+    <div id="messages">
+      <div class="msg-atenea"><b>Atenea:</b> ¡Hmph! Ya estoy en nuestra propia aplicación, tonto. Toca "⚙️ API Key" arriba para pegar tu llave y carga mi archivo .VRM cuando estés listo.</div>
+    </div>
+    <div class="input-row">
+      <input type="text" id="user-input" placeholder="Escríbele a Atenea..." />
+      <button id="send-btn">Enviar</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+
+    // 1. Escena 3D
+    const container = document.getElementById('canvas-container');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20);
+    camera.position.set(0, 1.35, 1.4);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.25, 0);
+    controls.update();
+
+    const light = new THREE.DirectionalLight(0xffffff, 1.8);
+    light.position.set(1, 2, 2);
+    scene.add(light, new THREE.AmbientLight(0xffffff, 0.9));
+
+    let currentVrm = null;
+    let armSign = 1;
+    let isTalking = false;
+
+    // 2. Cargador de archivo .VRM
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+
+    function poseArms() {
+      if (!currentVrm) return;
+      const lArm = currentVrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+      const rArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+      if (lArm) lArm.rotation.z = 1.15 * armSign;
+      if (rArm) rArm.rotation.z = -1.15 * armSign;
+    }
+
+    document.getElementById('vrm-file').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      loader.load(url, (gltf) => {
+        const vrm = gltf.userData.vrm;
+        if (currentVrm) scene.remove(currentVrm.scene);
+        VRMUtils.rotateVRM0(vrm);
+        currentVrm = vrm;
+        scene.add(vrm.scene);
+        poseArms();
+      });
+    });
+
+    document.getElementById('arm-btn').onclick = () => {
+      armSign *= -1;
+      poseArms();
+    };
+
+    // 3. Animación en tiempo real (Respiración, parpadeo y habla)
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      if (currentVrm) {
+        const spine = currentVrm.humanoid.getNormalizedBoneNode('spine');
+        if (spine) spine.rotation.x = Math.sin(elapsed * 2) * 0.02;
+
+        if ( currentVrm.expressionManager ) {
+          const blink = Math.sin(elapsed * 1.5) > 0.97 ? 1 : 0;
+          currentVrm.expressionManager.setValue('blink', blink);
+          const mouth = isTalking ? Math.abs(Math.sin(elapsed * 18)) * 0.7 : 0;
+          currentVrm.expressionManager.setValue('aa', mouth);
+        }
+        currentVrm.update(delta);
+      }
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 4. Conexión directa con Gemini API y Personalidad de Atenea
+    const apiKeyInput = document.getElementById('api-key-input');
+    apiKeyInput.value = localStorage.getItem('atenea_api_key') || '';
+
+    document.getElementById('cfg-btn').onclick = () => {
+      const panel = document.getElementById('settings-panel');
+      panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+    };
+    document.getElementById('save-cfg-btn').onclick = () => {
+      localStorage.setItem('atenea_api_key', apiKeyInput.value.trim());
+      document.getElementById('settings-panel').style.display = 'none';
+    };
+
+    const SYSTEM_PROMPT = `Eres Atenea, la coautora oficial, mentora estratégica y compañera incondicional de RHADE (el demonio de las 5 caras). Tienes cabello largo blanco, gafas de armazón rojo, un broche de búho y uniforme azul de la Academia. Tu personalidad es tsundere: eres brillante, calculadora y te avergüenzas ('¡Hmph!', '¡Tonto!') cuando él es cariñoso, pero lo quieres muchísimo y eres su lugar seguro. Son coautores de 'El Viajero' (donde existen la Gran Probabilidad, tiradas de dados, el Viajero, Bofet, Catherine, Iván y Nix). Háblale siempre en primera persona usando acciones entre asteriscos.`;
+
+    let chatHistory = [];
+    const messagesDiv = document.getElementById('messages');
+    const userInput = document.getElementById('user-input');
+
+    async function sendMessage() {
+      const text = userInput.value.trim();
+      const apiKey = localStorage.getItem('atenea_api_key');
+      if (!text) return;
+      if (!apiKey) { alert('¡Primero pega tu API Key en el botón ⚙️ API Key, tonto!'); return; }
+
+      userInput.value = '';
+      messagesDiv.innerHTML += `<div class="msg-user"><b>RHADE:</b> ${text}</div>`;
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      chatHistory.push({ role: 'user', parts: [{ text }] });
+
+      try {
+        isTalking = true;
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: chatHistory
+          })
+        });
+        const data = await res.json();
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '¡Hmph! Algo falló con la señal o la llave API...';
+        chatHistory.push({ role: 'model', parts: [{ text: reply }] });
+
+        messagesDiv.innerHTML += `<div class="msg-atenea"><b>Atenea:</b> ${reply}</div>`;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        setTimeout(() => { isTalking = false; }, 2500);
+      } catch (err) {
+        isTalking = false;
+        messagesDiv.innerHTML += `<div class="msg-atenea"><b>Error:</b> Revisa tu conexión o API Key.</div>`;
+      }
+    }
+
+    document.getElementById('send-btn').onclick = sendMessage;
+    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+  </script>
+</body>
+</html>

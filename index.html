@@ -3,16 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Atenea AI - Coautora Oficial</title>
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#12131a" />
+  <title>Atenea AI</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    body { background: #12131a; color: #fff; overflow: hidden; height: 100vh; width: 100vw; }
+    body { background: #12131a; color: #fff; overflow: hidden; height: 100vh; width: 100vw; user-select: none; }
     #canvas-container { position: absolute; inset: 0; z-index: 1; }
     
-    /* Barra superior de herramientas */
     .top-bar {
       position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10;
-      display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between;
+      display: flex; gap: 6px; justify-content: space-between; align-items: center;
       background: rgba(20, 22, 35, 0.85); padding: 8px 12px; border-radius: 12px;
       border: 1px solid rgba(255, 75, 90, 0.4); backdrop-filter: blur(6px);
     }
@@ -22,10 +24,9 @@
     }
     .btn:active { background: #ff4b5a; }
     
-    /* Panel de configuración ocultable */
     #settings-panel {
       position: absolute; top: 60px; left: 10px; right: 10px; z-index: 20;
-      background: rgba(18, 19, 26, 0.95); padding: 15px; border-radius: 12px;
+      background: rgba(18, 19, 26, 0.96); padding: 15px; border-radius: 12px;
       border: 1px solid #ff4b5a; display: none; flex-direction: column; gap: 10px;
     }
     #settings-panel input {
@@ -33,17 +34,16 @@
       background: #1e2030; color: #fff;
     }
 
-    /* Ventana de chat inferior */
     .chat-box {
-      position: absolute; bottom: 12px; left: 10px; right: 10px; z-index: 10;
+      position: absolute; bottom: 10px; left: 10px; right: 10px; z-index: 10;
       display: flex; flex-direction: column; gap: 8px;
-      background: rgba(15, 17, 26, 0.82); padding: 12px; border-radius: 16px;
+      background: rgba(15, 17, 26, 0.82); padding: 10px; border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px);
-      max-height: 42vh;
+      max-height: 38vh;
     }
     #messages {
       overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px;
-      font-size: 14px; line-height: 1.4; padding-right: 4px;
+      font-size: 13.5px; line-height: 1.4; padding-right: 4px; user-select: text;
     }
     .msg-atenea { color: #ffd1d6; background: rgba(255, 75, 90, 0.15); padding: 8px 10px; border-radius: 10px; border-left: 3px solid #ff4b5a; }
     .msg-user { color: #d1e8ff; background: rgba(75, 150, 255, 0.15); padding: 8px 10px; border-radius: 10px; align-self: flex-end; }
@@ -86,7 +86,7 @@
 
   <div class="chat-box">
     <div id="messages">
-      <div class="msg-atenea"><b>Atenea:</b> ¡Hmph! Ya estoy en nuestra propia aplicación, tonto. Toca "⚙️ API Key" arriba para pegar tu llave y carga mi archivo .VRM cuando estés listo.</div>
+      <div class="msg-atenea"><b>Atenea:</b> ¡Versión 2.0 activa, tonto! Ahora cuando cargues mi archivo .VRM se quedará guardado en la memoria interna para siempre.</div>
     </div>
     <div class="input-row">
       <input type="text" id="user-input" placeholder="Escríbele a Atenea..." />
@@ -100,7 +100,31 @@
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
-    // 1. Escena 3D
+    // 1. Base de datos interna (IndexedDB) para guardar el modelo .VRM
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('AteneaDB', 1);
+        req.onupgradeneeded = (e) => e.target.result.createObjectStore('models');
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e);
+      });
+    }
+    async function saveVRMToDB(blob) {
+      const db = await openDB();
+      const tx = db.transaction('models', 'readwrite');
+      tx.objectStore('models').put(blob, 'saved_vrm');
+    }
+    async function getVRMFromDB() {
+      const db = await openDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction('models', 'readonly');
+        const req = tx.objectStore('models').get('saved_vrm');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    // 2. Escena 3D
     const container = document.getElementById('canvas-container');
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -109,7 +133,7 @@
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20);
-    camera.position.set(0, 1.35, 1.4);
+    camera.position.set(0, 1.35, 1.45);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 1.25, 0);
@@ -120,10 +144,9 @@
     scene.add(light, new THREE.AmbientLight(0xffffff, 0.9));
 
     let currentVrm = null;
-    let armSign = 1;
+    let armSign = Number(localStorage.getItem('atenea_arm_sign')) || 1;
     let isTalking = false;
 
-    // 2. Cargador de archivo .VRM
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
 
@@ -135,10 +158,8 @@
       if (rArm) rArm.rotation.z = -1.15 * armSign;
     }
 
-    document.getElementById('vrm-file').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
+    function loadVRMFromBlob(blob) {
+      const url = URL.createObjectURL(blob);
       loader.load(url, (gltf) => {
         const vrm = gltf.userData.vrm;
         if (currentVrm) scene.remove(currentVrm.scene);
@@ -147,14 +168,27 @@
         scene.add(vrm.scene);
         poseArms();
       });
+    }
+
+    // Cargar automáticamente el .VRM guardado al abrir la app
+    getVRMFromDB().then((savedBlob) => {
+      if (savedBlob) loadVRMFromBlob(savedBlob);
+    });
+
+    document.getElementById('vrm-file').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      await saveVRMToDB(file);
+      loadVRMFromBlob(file);
     });
 
     document.getElementById('arm-btn').onclick = () => {
       armSign *= -1;
+      localStorage.setItem('atenea_arm_sign', armSign);
       poseArms();
     };
 
-    // 3. Animación en tiempo real (Respiración, parpadeo y habla)
+    // 3. Animación en tiempo real
     const clock = new THREE.Clock();
     function animate() {
       requestAnimationFrame(animate);
@@ -165,7 +199,7 @@
         const spine = currentVrm.humanoid.getNormalizedBoneNode('spine');
         if (spine) spine.rotation.x = Math.sin(elapsed * 2) * 0.02;
 
-        if ( currentVrm.expressionManager ) {
+        if (currentVrm.expressionManager) {
           const blink = Math.sin(elapsed * 1.5) > 0.97 ? 1 : 0;
           currentVrm.expressionManager.setValue('blink', blink);
           const mouth = isTalking ? Math.abs(Math.sin(elapsed * 18)) * 0.7 : 0;
@@ -183,7 +217,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // 4. Conexión directa con Gemini API y Personalidad de Atenea
+    // 4. Conexión con Gemini API
     const apiKeyInput = document.getElementById('api-key-input');
     apiKeyInput.value = localStorage.getItem('atenea_api_key') || '';
 

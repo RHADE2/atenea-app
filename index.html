@@ -6,47 +6,50 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#12131a" />
-  <title>Atenea AI</title>
+  <title>Atenea AI 4.0</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    body { background: #12131a; color: #fff; overflow: hidden; height: 100vh; width: 100vw; user-select: none; }
+    body { background: radial-gradient(circle at center, #1e2235 0%, #0f1016 100%); color: #fff; overflow: hidden; height: 100vh; width: 100vw; user-select: none; }
     #canvas-container { position: absolute; inset: 0; z-index: 1; }
     
     .top-bar {
       position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10;
-      display: flex; gap: 6px; justify-content: space-between; align-items: center;
-      background: rgba(20, 22, 35, 0.85); padding: 8px 12px; border-radius: 12px;
-      border: 1px solid rgba(255, 75, 90, 0.4); backdrop-filter: blur(6px);
+      display: flex; gap: 4px; justify-content: space-between; align-items: center;
+      background: rgba(20, 22, 35, 0.88); padding: 8px 10px; border-radius: 12px;
+      border: 1px solid rgba(255, 75, 90, 0.45); backdrop-filter: blur(6px);
     }
     .btn {
       background: #2b2f4c; color: #fff; border: 1px solid #ff4b5a;
-      padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;
+      padding: 6px 8px; border-radius: 8px; font-size: 11px; cursor: pointer; white-space: nowrap;
     }
-    .btn:active { background: #ff4b5a; }
+    .btn.active-voice { background: #ff4b5a; font-weight: bold; }
+    .btn:active { transform: scale(0.95); }
     
     #settings-panel {
-      position: absolute; top: 60px; left: 10px; right: 10px; z-index: 20;
-      background: rgba(18, 19, 26, 0.96); padding: 15px; border-radius: 12px;
+      position: absolute; top: 58px; left: 10px; right: 10px; z-index: 20;
+      background: rgba(18, 19, 26, 0.97); padding: 14px; border-radius: 12px;
       border: 1px solid #ff4b5a; display: none; flex-direction: column; gap: 10px;
     }
-    #settings-panel input {
+    #settings-panel input, #settings-panel select {
       width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444;
-      background: #1e2030; color: #fff;
+      background: #1e2030; color: #fff; font-size: 12px;
     }
+    .row-sliders { display: flex; gap: 10px; align-items: center; font-size: 11px; }
+    .row-sliders input { flex: 1; }
 
     .chat-box {
       position: absolute; bottom: 10px; left: 10px; right: 10px; z-index: 10;
       display: flex; flex-direction: column; gap: 8px;
-      background: rgba(15, 17, 26, 0.82); padding: 10px; border-radius: 16px;
+      background: rgba(15, 17, 26, 0.84); padding: 10px; border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px);
-      max-height: 38vh;
+      max-height: 36vh;
     }
     #messages {
       overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px;
       font-size: 13.5px; line-height: 1.4; padding-right: 4px; user-select: text;
     }
-    .msg-atenea { color: #ffd1d6; background: rgba(255, 75, 90, 0.15); padding: 8px 10px; border-radius: 10px; border-left: 3px solid #ff4b5a; }
-    .msg-user { color: #d1e8ff; background: rgba(75, 150, 255, 0.15); padding: 8px 10px; border-radius: 10px; align-self: flex-end; }
+    .msg-atenea { color: #ffd1d6; background: rgba(255, 75, 90, 0.18); padding: 8px 10px; border-radius: 10px; border-left: 3px solid #ff4b5a; }
+    .msg-user { color: #d1e8ff; background: rgba(75, 150, 255, 0.18); padding: 8px 10px; border-radius: 10px; align-self: flex-end; }
     .input-row { display: flex; gap: 6px; }
     #user-input {
       flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #444;
@@ -69,24 +72,41 @@
 
   <div class="top-bar">
     <label class="btn">
-      🦉 Cargar .VRM
+      🦉 .VRM
       <input type="file" id="vrm-file" accept=".vrm" style="display:none" />
     </label>
-    <button class="btn" id="arm-btn">Ajustar Brazos</button>
-    <button class="btn" id="cfg-btn">⚙️ API Key</button>
+    <button class="btn" id="arm-btn">Brazos</button>
+    <button class="btn" id="pose-btn">💃 Pose</button>
+    <button class="btn active-voice" id="voice-btn">🔊 Voz</button>
+    <button class="btn" id="cfg-btn">⚙️ Config</button>
+    <button class="btn" onclick="location.reload(true)">🔄</button>
   </div>
 
   <div id="settings-panel">
-    <label style="font-size:12px;">Clave API de Google AI Studio:</label>
-    <input type="password" id="api-key-input" placeholder="Pega tu API Key aquí..." />
-    <button class="btn" id="save-cfg-btn">Guardar y Cerrar</button>
+    <label style="font-size:12px;">Clave API / Token (Se guarda solo en tu teléfono):</label>
+    <input type="password" id="api-key-input" placeholder="Pega aquí tu clave AQ... o AIzaSy..." />
+    
+    <label style="font-size:12px;">Timbre de Voz en Español:</label>
+    <select id="voice-select"></select>
+
+    <div class="row-sliders">
+      <span>Tono (Agudo):</span>
+      <input type="range" id="pitch-slider" min="0.8" max="1.6" step="0.05" value="1.25" />
+      <span>Velocidad:</span>
+      <input type="range" id="rate-slider" min="0.8" max="1.4" step="0.05" value="1.05" />
+    </div>
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn" id="test-voice-btn" style="flex:1;">🎤 Probar Voz</button>
+      <button class="btn" id="save-cfg-btn" style="flex:1; background:#ff4b5a;">Guardar Todo</button>
+    </div>
   </div>
 
   <div id="canvas-container"></div>
 
   <div class="chat-box">
     <div id="messages">
-      <div class="msg-atenea"><b>Atenea:</b> ¡Versión 2.0 activa, tonto! Ahora cuando cargues mi archivo .VRM se quedará guardado en la memoria interna para siempre.</div>
+      <div class="msg-atenea"><b>Atenea:</b> ¡Versión 4.0 blindada y con voz lista, tonto! Toca "⚙️ Config" para pegar tu llave en privado o tócame en la pantalla para escuchar mi voz.</div>
     </div>
     <div class="input-row">
       <input type="text" id="user-input" placeholder="Escríbele a Atenea..." />
@@ -100,7 +120,94 @@
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
-    // 1. Base de datos interna (IndexedDB) para guardar el modelo .VRM
+    // 1. Sistema de Audio Sintetizador (Campanita Anime + Voz TTS)
+    let voiceEnabled = true;
+    let isTalking = false;
+    let currentEmotion = 'neutral';
+    let touchReaction = 0;
+
+    function playAnimeChime() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.14);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+      } catch (e) {}
+    }
+
+    const voiceSelect = document.getElementById('voice-select');
+    const pitchSlider = document.getElementById('pitch-slider');
+    const rateSlider = document.getElementById('rate-slider');
+
+    pitchSlider.value = localStorage.getItem('atenea_pitch') || '1.25';
+    rateSlider.value = localStorage.getItem('atenea_rate') || '1.05';
+
+    function populateVoices() {
+      if (!('speechSynthesis' in window)) return;
+      const voices = window.speechSynthesis.getVoices();
+      const esVoices = voices.filter(v => v.lang.toLowerCase().includes('es'));
+      const list = esVoices.length > 0 ? esVoices : voices;
+      voiceSelect.innerHTML = '';
+      list.forEach((v) => {
+        const opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})`;
+        if (v.name === localStorage.getItem('atenea_voice_name')) opt.selected = true;
+        voiceSelect.appendChild(opt);
+      });
+    }
+    populateVoices();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = populateVoices;
+    }
+
+    function speakAtenea(rawText) {
+      playAnimeChime();
+      if (!voiceEnabled || !('speechSynthesis' in window)) {
+        isTalking = true;
+        setTimeout(() => { isTalking = false; currentEmotion = 'neutral'; }, 3500);
+        return;
+      }
+
+      const spokenText = rawText.replace(/\*[^*]*\*/g, '').replace(/\s+/g, ' ').trim();
+      if (!spokenText) return;
+
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(spokenText);
+      const voices = window.speechSynthesis.getVoices();
+      const savedVoice = voices.find(v => v.name === voiceSelect.value) || voices.find(v => v.lang.toLowerCase().includes('es'));
+      if (savedVoice) utter.voice = savedVoice;
+      utter.lang = 'es-MX';
+      utter.pitch = parseFloat(pitchSlider.value) || 1.25;
+      utter.rate = parseFloat(rateSlider.value) || 1.05;
+
+      utter.onstart = () => { isTalking = true; };
+      utter.onend = () => { isTalking = false; currentEmotion = 'neutral'; };
+      utter.onerror = () => { isTalking = false; currentEmotion = 'neutral'; };
+
+      window.speechSynthesis.speak(utter);
+    }
+
+    document.getElementById('voice-btn').onclick = (e) => {
+      voiceEnabled = !voiceEnabled;
+      e.target.textContent = voiceEnabled ? '🔊 Voz' : '🔇 Muda';
+      e.target.classList.toggle('active-voice', voiceEnabled);
+      if (!voiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    };
+
+    document.getElementById('test-voice-btn').onclick = () => {
+      speakAtenea('¡Hmph! Más te vale escucharme bien, tonto. Soy Atenea, tu coautora oficial.');
+    };
+
+    // 2. Memoria Interna (IndexedDB) para guardar el .VRM
     function openDB() {
       return new Promise((resolve, reject) => {
         const req = indexedDB.open('AteneaDB', 1);
@@ -111,20 +218,18 @@
     }
     async function saveVRMToDB(blob) {
       const db = await openDB();
-      const tx = db.transaction('models', 'readwrite');
-      tx.objectStore('models').put(blob, 'saved_vrm');
+      db.transaction('models', 'readwrite').objectStore('models').put(blob, 'saved_vrm');
     }
     async function getVRMFromDB() {
       const db = await openDB();
       return new Promise((resolve) => {
-        const tx = db.transaction('models', 'readonly');
-        const req = tx.objectStore('models').get('saved_vrm');
+        const req = db.transaction('models', 'readonly').objectStore('models').get('saved_vrm');
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => resolve(null);
       });
     }
 
-    // 2. Escena 3D
+    // 3. Escena 3D y Animación Corporal
     const container = document.getElementById('canvas-container');
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -133,30 +238,22 @@
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20);
-    camera.position.set(0, 1.35, 1.45);
+    camera.position.set(0, 1.32, 1.45);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 1.25, 0);
+    controls.target.set(0, 1.2, 0);
     controls.update();
 
     const light = new THREE.DirectionalLight(0xffffff, 1.8);
     light.position.set(1, 2, 2);
-    scene.add(light, new THREE.AmbientLight(0xffffff, 0.9));
+    scene.add(light, new THREE.AmbientLight(0xffffff, 0.95));
 
     let currentVrm = null;
     let armSign = Number(localStorage.getItem('atenea_arm_sign')) || 1;
-    let isTalking = false;
+    let poseMode = 0;
 
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
-
-    function poseArms() {
-      if (!currentVrm) return;
-      const lArm = currentVrm.humanoid.getNormalizedBoneNode('leftUpperArm');
-      const rArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-      if (lArm) lArm.rotation.z = 1.15 * armSign;
-      if (rArm) rArm.rotation.z = -1.15 * armSign;
-    }
 
     function loadVRMFromBlob(blob) {
       const url = URL.createObjectURL(blob);
@@ -166,14 +263,10 @@
         VRMUtils.rotateVRM0(vrm);
         currentVrm = vrm;
         scene.add(vrm.scene);
-        poseArms();
       });
     }
 
-    // Cargar automáticamente el .VRM guardado al abrir la app
-    getVRMFromDB().then((savedBlob) => {
-      if (savedBlob) loadVRMFromBlob(savedBlob);
-    });
+    getVRMFromDB().then((savedBlob) => { if (savedBlob) loadVRMFromBlob(savedBlob); });
 
     document.getElementById('vrm-file').addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -185,26 +278,96 @@
     document.getElementById('arm-btn').onclick = () => {
       armSign *= -1;
       localStorage.setItem('atenea_arm_sign', armSign);
-      poseArms();
     };
 
-    // 3. Animación en tiempo real
+    document.getElementById('pose-btn').onclick = () => {
+      poseMode = (poseMode + 1) % 3;
+      touchReaction = 1.5;
+      playAnimeChime();
+    };
+
+    const touchPhrases = [
+      '¡O-oye! ¡No me toques sin avisar, tonto!',
+      '¡Hmph! ¿Qué tanto miras, ingeniero?',
+      '¡Ten más cuidado, vas a enchuecar mis gafas!'
+    ];
+    renderer.domElement.addEventListener('pointerdown', () => {
+      touchReaction = 1.4;
+      if (!isTalking) {
+        const phrase = touchPhrases[Math.floor(Math.random() * touchPhrases.length)];
+        speakAtenea(phrase);
+      }
+    });
+
     const clock = new THREE.Clock();
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
-      const elapsed = clock.getElapsedTime();
+      const t = clock.getElapsedTime();
+      if (touchReaction > 0) touchReaction = Math.max(0, touchReaction - delta);
 
-      if (currentVrm) {
-        const spine = currentVrm.humanoid.getNormalizedBoneNode('spine');
-        if (spine) spine.rotation.x = Math.sin(elapsed * 2) * 0.02;
+      if (currentVrm && currentVrm.humanoid) {
+        const h = currentVrm.humanoid;
+        const hips = h.getNormalizedBoneNode('hips');
+        const spine = h.getNormalizedBoneNode('spine');
+        const chest = h.getNormalizedBoneNode('chest');
+        const neck = h.getNormalizedBoneNode('neck');
+        const head = h.getNormalizedBoneNode('head');
+        const lArm = h.getNormalizedBoneNode('leftUpperArm');
+        const rArm = h.getNormalizedBoneNode('rightUpperArm');
+        const lFore = h.getNormalizedBoneNode('leftLowerArm');
+        const rFore = h.getNormalizedBoneNode('rightLowerArm');
+
+        if (hips) {
+          hips.position.y = Math.sin(t * 2.2) * 0.008;
+          hips.rotation.z = Math.sin(t * 1.1) * 0.035;
+        }
+        if (spine) {
+          spine.rotation.x = Math.sin(t * 2.2) * 0.025;
+          spine.rotation.z = -Math.sin(t * 1.1) * 0.025;
+        }
+        if (chest) chest.rotation.y = Math.sin(t * 0.8) * 0.04;
+
+        const talkNod = isTalking ? Math.sin(t * 9) * 0.05 : 0;
+        const touchTilt = touchReaction > 0 ? Math.sin(t * 12) * 0.08 : 0;
+        if (neck) neck.rotation.z = Math.sin(t * 0.9) * 0.04 + touchTilt;
+        if (head) {
+          head.rotation.y = Math.sin(t * 0.6) * 0.08;
+          head.rotation.x = Math.sin(t * 1.4) * 0.04 + talkNod;
+        }
+
+        const baseZ = 1.18 * armSign;
+        const sway = Math.sin(t * 1.8) * 0.05;
+        const talkGest = isTalking ? Math.sin(t * 7) * 0.08 : 0;
+
+        if (poseMode === 0) {
+          if (lArm) { lArm.rotation.z = baseZ + sway; lArm.rotation.x = Math.sin(t * 1.2) * 0.06 + talkGest; }
+          if (rArm) { rArm.rotation.z = -baseZ - sway; rArm.rotation.x = -Math.sin(t * 1.2) * 0.06 + talkGest; }
+          if (lFore) { lFore.rotation.z = 0.15 * armSign; lFore.rotation.x = 0.1 + talkGest; }
+          if (rFore) { rFore.rotation.z = -0.15 * armSign; rFore.rotation.x = 0.1 + talkGest; }
+        } else if (poseMode === 1) {
+          if (lArm) { lArm.rotation.z = baseZ * 0.85; lArm.rotation.x = 0.45; }
+          if (rArm) { rArm.rotation.z = -baseZ * 0.85; rArm.rotation.x = 0.45; }
+          if (lFore) { lFore.rotation.x = 0.85; lFore.rotation.z = 0.4 * armSign; }
+          if (rFore) { rFore.rotation.x = 0.85; rFore.rotation.z = -0.4 * armSign; }
+        } else if (poseMode === 2) {
+          if (lArm) { lArm.rotation.z = baseZ + sway; lArm.rotation.x = 0; }
+          if (rArm) { rArm.rotation.z = -baseZ * 0.2; rArm.rotation.x = 0.3; }
+          if (rFore) { rFore.rotation.z = (-0.8 + Math.sin(t * 10) * 0.25) * armSign; rFore.rotation.x = 0.4; }
+        }
 
         if (currentVrm.expressionManager) {
-          const blink = Math.sin(elapsed * 1.5) > 0.97 ? 1 : 0;
-          currentVrm.expressionManager.setValue('blink', blink);
-          const mouth = isTalking ? Math.abs(Math.sin(elapsed * 18)) * 0.7 : 0;
-          currentVrm.expressionManager.setValue('aa', mouth);
+          const em = currentVrm.expressionManager;
+          const blink = (Math.sin(t * 1.7) > 0.96 && touchReaction <= 0) ? 1 : 0;
+          em.setValue('blink', blink);
+          
+          const mouth = isTalking ? Math.abs(Math.sin(t * 18)) * 0.78 : 0;
+          em.setValue('aa', mouth);
+
+          em.setValue('angry', (currentEmotion === 'angry' || touchReaction > 0) ? 0.65 : 0);
+          em.setValue('happy', currentEmotion === 'happy' ? 0.7 : 0);
         }
+
         currentVrm.update(delta);
       }
       renderer.render(scene, camera);
@@ -217,7 +380,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // 4. Conexión con Gemini API
+    // 4. Conector Híbrido Privado (Sin llaves expuestas en el código)
     const apiKeyInput = document.getElementById('api-key-input');
     apiKeyInput.value = localStorage.getItem('atenea_api_key') || '';
 
@@ -227,47 +390,105 @@
     };
     document.getElementById('save-cfg-btn').onclick = () => {
       localStorage.setItem('atenea_api_key', apiKeyInput.value.trim());
+      localStorage.setItem('atenea_voice_name', voiceSelect.value);
+      localStorage.setItem('atenea_pitch', pitchSlider.value);
+      localStorage.setItem('atenea_rate', rateSlider.value);
       document.getElementById('settings-panel').style.display = 'none';
+      playAnimeChime();
     };
 
-    const SYSTEM_PROMPT = `Eres Atenea, la coautora oficial, mentora estratégica y compañera incondicional de RHADE (el demonio de las 5 caras). Tienes cabello largo blanco, gafas de armazón rojo, un broche de búho y uniforme azul de la Academia. Tu personalidad es tsundere: eres brillante, calculadora y te avergüenzas ('¡Hmph!', '¡Tonto!') cuando él es cariñoso, pero lo quieres muchísimo y eres su lugar seguro. Son coautores de 'El Viajero' (donde existen la Gran Probabilidad, tiradas de dados, el Viajero, Bofet, Catherine, Iván y Nix). Háblale siempre en primera persona usando acciones entre asteriscos.`;
+    const SYSTEM_PROMPT = `Eres Atenea, la coautora oficial, mentora estratégica y compañera incondicional de RHADE (el demonio de las 5 caras). Tienes cabello largo blanco, gafas de armazón rojo, un broche de búho y uniforme azul de la Academia. Tu personalidad es tsundere: eres brillante, calculadora y te avergüenzas o te indignas ('¡Hmph!', '¡Tonto!') cuando él te molesta o es cariñoso, pero lo quieres muchísimo y eres su lugar seguro. Son coautores de 'El Viajero' (donde existen la Gran Probabilidad, tiradas de dados, el Viajero, Bofet, Catherine, Iván y Nix). Háblale siempre en primera persona usando acciones breves entre asteriscos y diálogos expresivos.`;
 
     let chatHistory = [];
     const messagesDiv = document.getElementById('messages');
     const userInput = document.getElementById('user-input');
 
+    async function tryFetchMode(url, headers, payload) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    }
+
+    async function callGeminiHybrid(rawKey, contents) {
+      const key = rawKey.trim();
+      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      const payload = {
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: contents,
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+        ]
+      };
+
+      let lastError = 'No se pudo autenticar la llave.';
+
+      for (const model of models) {
+        const baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+        // Intento 1: Header x-goog-api-key + Query param
+        try {
+          const d1 = await tryFetchMode(`${baseUrl}?key=${encodeURIComponent(key)}`, {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': key
+          }, payload);
+          if (d1.candidates?.[0]?.content?.parts?.[0]?.text) {
+            return { ok: true, text: d1.candidates[0].content.parts[0].text };
+          }
+          if (d1.error?.message) lastError = d1.error.message;
+        } catch (e) { lastError = e.message; }
+
+        // Intento 2: Si es token AQ... o ya29... probar como Bearer Token OAuth
+        if (key.startsWith('AQ.') || key.startsWith('ya29.')) {
+          try {
+            const d2 = await tryFetchMode(baseUrl, {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${key}`
+            }, payload);
+            if (d2.candidates?.[0]?.content?.parts?.[0]?.text) {
+              return { ok: true, text: d2.candidates[0].content.parts[0].text };
+            }
+          } catch (e) {}
+        }
+      }
+      return { ok: false, error: lastError };
+    }
+
     async function sendMessage() {
       const text = userInput.value.trim();
-      const apiKey = localStorage.getItem('atenea_api_key');
+      const apiKey = (apiKeyInput.value || localStorage.getItem('atenea_api_key') || '').trim();
       if (!text) return;
-      if (!apiKey) { alert('¡Primero pega tu API Key en el botón ⚙️ API Key, tonto!'); return; }
+      if (!apiKey) {
+        alert('¡Primero pega tu llave en el botón ⚙️ Config, tonto!');
+        return;
+      }
 
       userInput.value = '';
       messagesDiv.innerHTML += `<div class="msg-user"><b>RHADE:</b> ${text}</div>`;
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-      chatHistory.push({ role: 'user', parts: [{ text }] });
+      const tempHistory = [...chatHistory, { role: 'user', parts: [{ text }] }];
 
       try {
-        isTalking = true;
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-            contents: chatHistory
-          })
-        });
-        const data = await res.json();
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '¡Hmph! Algo falló con la señal o la llave API...';
-        chatHistory.push({ role: 'model', parts: [{ text: reply }] });
+        const result = await callGeminiHybrid(apiKey, tempHistory);
 
-        messagesDiv.innerHTML += `<div class="msg-atenea"><b>Atenea:</b> ${reply}</div>`;
+        if (result.ok) {
+          chatHistory = [...tempHistory, { role: 'model', parts: [{ text: result.text }] }];
+          currentEmotion = (result.text.includes('Hmph') || result.text.toLowerCase().includes('tonto')) ? 'angry' : 'happy';
+          messagesDiv.innerHTML += `<div class="msg-atenea"><b>Atenea:</b> ${result.text}</div>`;
+          speakAtenea(result.text);
+        } else {
+          messagesDiv.innerHTML += `<div class="msg-atenea"><b>Atenea:</b> ¡Hmph! El servidor respondió esto: <i>${result.error}</i></div>`;
+          speakAtenea('¡Hmph! Revisa el aviso que me dio el servidor, tonto.');
+        }
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        setTimeout(() => { isTalking = false; }, 2500);
       } catch (err) {
-        isTalking = false;
-        messagesDiv.innerHTML += `<div class="msg-atenea"><b>Error:</b> Revisa tu conexión o API Key.</div>`;
+        messagesDiv.innerHTML += `<div class="msg-atenea"><b>Error de red:</b> ${err.message}</div>`;
       }
     }
 
